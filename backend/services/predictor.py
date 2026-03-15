@@ -43,6 +43,9 @@ CATEGORICAL_COLUMNS = [
 
 # Train the visa approval model and save it
 def train_model():
+    import mlflow
+    import mlflow.sklearn
+
     print("Loading dataset...")
     df = pd.read_csv(DATA_PATH)
 
@@ -70,16 +73,31 @@ def train_model():
         X, y, test_size=0.2, random_state=42
     )
 
-    # Train Random Forest model
-    print("Training Random Forest model...")
-    model = RandomForestClassifier(n_estimators=100, random_state=42, n_jobs=-1)
-    model.fit(X_train, y_train)
+    # Start MLflow run
+    mlflow.set_experiment("visa-approval-predictor")
+    with mlflow.start_run():
+        # Train Random Forest model
+        n_estimators = 100
+        print("Training Random Forest model...")
+        model = RandomForestClassifier(
+            n_estimators=n_estimators, random_state=42, n_jobs=-1
+        )
+        model.fit(X_train, y_train)
 
-    # Evaluate model
-    y_pred = model.predict(X_test)
-    accuracy = accuracy_score(y_test, y_pred)
-    print(f"Model Accuracy: {accuracy:.4f}")
-    print(classification_report(y_test, y_pred, target_names=target_encoder.classes_))
+        # Evaluate model
+        y_pred = model.predict(X_test)
+        accuracy = accuracy_score(y_test, y_pred)
+        print(f"Model Accuracy: {accuracy:.4f}")
+        print(classification_report(y_test, y_pred, target_names=target_encoder.classes_))
+
+        # Log parameters and metrics to MLflow
+        mlflow.log_param("n_estimators", n_estimators)
+        mlflow.log_param("test_size", 0.2)
+        mlflow.log_param("random_state", 42)
+        mlflow.log_metric("accuracy", accuracy)
+        mlflow.sklearn.log_model(model, "random_forest_model")
+
+        print(f"MLflow run logged.")
 
     # Save model and encoders
     os.makedirs(os.path.dirname(MODEL_PATH), exist_ok=True)
