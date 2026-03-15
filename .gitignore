@@ -54,3 +54,6 @@ frontend/.env
 .DS_Store
 Thumbs.db
 
+
+# Data
+backend/data/EasyVisa.csv
