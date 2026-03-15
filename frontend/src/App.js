@@ -1,6 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
-import Login from "./pages/Login";
-import Register from "./pages/Register";
+import Auth from "./pages/Auth";
 import Chat from "./pages/Chat";
 import VisaPredictor from "./pages/VisaPredictor";
 
@@ -19,8 +18,7 @@ function App() {
     <Router>
       <Routes>
         {/* Public routes */}
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
+        <Route path="/" element={<Auth />} />
 
         {/* Protected routes */}
         <Route
@@ -41,7 +39,7 @@ function App() {
         />
 
         {/* Default redirect */}
-        <Route path="*" element={<Navigate to="/login" />} />
+        <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </Router>
   );
