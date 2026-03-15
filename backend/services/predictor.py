@@ -7,6 +7,8 @@ from sklearn.preprocessing import LabelEncoder
 from sklearn.metrics import accuracy_score, classification_report
 import shap
 import joblib
+import mlflow
+import mlflow.sklearn
 
 # Paths
 DATA_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "EasyVisa.csv")
@@ -43,40 +45,29 @@ CATEGORICAL_COLUMNS = [
 
 # Train the visa approval model and save it
 def train_model():
-    import mlflow
-    import mlflow.sklearn
-
     print("Loading dataset...")
     df = pd.read_csv(DATA_PATH)
-
-    # Drop case_id since it's not a feature
     df = df.drop(columns=["case_id"])
 
-    # Encode categorical columns
     encoders = {}
     for col in CATEGORICAL_COLUMNS:
         le = LabelEncoder()
         df[col] = le.fit_transform(df[col].astype(str))
         encoders[col] = le
 
-    # Encode target column - Certified = 1, Denied = 0
     target_encoder = LabelEncoder()
     df[TARGET_COLUMN] = target_encoder.fit_transform(df[TARGET_COLUMN])
     encoders[TARGET_COLUMN] = target_encoder
 
-    # Split features and target
     X = df[FEATURE_COLUMNS]
     y = df[TARGET_COLUMN]
 
-    # Train test split
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=0.2, random_state=42
     )
 
-    # Start MLflow run
     mlflow.set_experiment("visa-approval-predictor")
     with mlflow.start_run():
-        # Train Random Forest model
         n_estimators = 100
         print("Training Random Forest model...")
         model = RandomForestClassifier(
@@ -84,22 +75,17 @@ def train_model():
         )
         model.fit(X_train, y_train)
 
-        # Evaluate model
         y_pred = model.predict(X_test)
         accuracy = accuracy_score(y_test, y_pred)
         print(f"Model Accuracy: {accuracy:.4f}")
         print(classification_report(y_test, y_pred, target_names=target_encoder.classes_))
 
-        # Log parameters and metrics to MLflow
         mlflow.log_param("n_estimators", n_estimators)
         mlflow.log_param("test_size", 0.2)
         mlflow.log_param("random_state", 42)
         mlflow.log_metric("accuracy", accuracy)
         mlflow.sklearn.log_model(model, "random_forest_model")
 
-        print(f"MLflow run logged.")
-
-    # Save model and encoders
     os.makedirs(os.path.dirname(MODEL_PATH), exist_ok=True)
     joblib.dump(model, MODEL_PATH)
     joblib.dump(encoders, ENCODER_PATH)
@@ -117,45 +103,43 @@ def load_model():
 
 # Predict visa approval and explain with SHAP
 def predict_visa(input_data: dict):
-    # Load model
     model, encoders = load_model()
 
-    # Convert input to dataframe
-    df_input = pd.DataFrame([input_data])
-
-    # Encode categorical columns using saved encoders
-    for col in CATEGORICAL_COLUMNS:
-        if col in df_input.columns:
+    # Build input row manually to avoid encoding issues
+    row = {}
+    for col in FEATURE_COLUMNS:
+        val = input_data[col]
+        if col in CATEGORICAL_COLUMNS:
             le = encoders[col]
-            df_input[col] = le.transform(df_input[col].astype(str))
+            encoded = le.transform([str(val).strip()])[0]
+            row[col] = int(encoded)
+        else:
+            row[col] = val
+
+    # Create dataframe with correct column order
+    X = pd.DataFrame([row], columns=FEATURE_COLUMNS)
 
     # Make prediction
-    X = df_input[FEATURE_COLUMNS]
-    prediction = model.predict(X)[0]
+    prediction = int(model.predict(X)[0])
     probability = model.predict_proba(X)[0]
 
-    # Decode prediction label
+    # Decode prediction
     target_encoder = encoders[TARGET_COLUMN]
     predicted_label = target_encoder.inverse_transform([prediction])[0]
+
+    # Confidence scores
+    confidence = {
+        "Certified": round(float(probability[0]), 4),
+        "Denied": round(float(probability[1]), 4)
+    }
 
     # SHAP explanation
     explainer = shap.TreeExplainer(model)
     shap_values = explainer.shap_values(X)
 
-    # Handle SHAP output shape correctly
-    if isinstance(shap_values, list):
-        shap_vals = shap_values[-1][0]
-    else:
-        shap_vals = shap_values[0]
-
-    # Make sure shap_vals is 1D array
-    shap_vals = np.array(shap_vals).flatten()
-
-    # Map feature names to SHAP values
-    shap_explanation = {
-        FEATURE_COLUMNS[i]: round(float(shap_vals[i]), 4)
-        for i in range(len(FEATURE_COLUMNS))
-    }
+    # shap_values shape: (n_samples, n_features, n_classes)
+    shap_array = np.array(shap_values)
+    shap_vals = shap_array[0, :, 0]  # use Certified class (index 0)
 
     # Map feature names to SHAP values
     shap_explanation = {
@@ -170,9 +154,6 @@ def predict_visa(input_data: dict):
 
     return {
         "prediction": predicted_label,
-        "confidence": {
-            "Denied": round(float(probability[0]), 4),
-            "Certified": round(float(probability[1]), 4)
-        },
+        "confidence": confidence,
         "shap_explanation": shap_explanation
     }
