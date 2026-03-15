@@ -32,6 +32,7 @@ backend/trained_models/
 
 # USCIS Docs (large PDFs)
 backend/data/uscis_docs/
+backend/data/faiss_index/
 
 # MLflow
 mlruns/
@@ -52,3 +53,4 @@ frontend/.env
 # OS
 .DS_Store
 Thumbs.db
+

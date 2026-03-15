@@ -6,6 +6,7 @@ import os
 from models.database import engine, Base
 from models import user  # noqa: F401 - needed to register the User model
 from routers import auth as auth_router
+from services.rag import build_rag_pipeline
 
 # Load environment variables from backend/.env
 load_dotenv()
@@ -34,6 +35,13 @@ app.add_middleware(
 
 # Register routers
 app.include_router(auth_router.router)
+
+# Initialize RAG pipeline on startup
+@app.on_event("startup")
+async def startup_event():
+    print("Initializing RAG pipeline...")
+    app.state.qa_chain = build_rag_pipeline()
+    print("RAG pipeline ready.")
 
 # Health check route
 @app.get("/")
