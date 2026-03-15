@@ -6,6 +6,7 @@ import os
 from models.database import engine, Base
 from models import user  # noqa: F401 - needed to register the User model
 from routers import auth as auth_router
+from routers import chat as chat_router
 from services.rag import build_rag_pipeline
 
 # Load environment variables from backend/.env
@@ -35,6 +36,7 @@ app.add_middleware(
 
 # Register routers
 app.include_router(auth_router.router)
+app.include_router(chat_router.router)
 
 # Initialize RAG pipeline on startup
 @app.on_event("startup")
