@@ -6,9 +6,9 @@ from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
 from langchain_groq import ChatGroq
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain_core.runnables import RunnablePassthrough
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.messages import HumanMessage, AIMessage
+from langchain_core.runnables import RunnableLambda, RunnablePassthrough
 
 load_dotenv()
 
@@ -58,7 +58,6 @@ def load_vector_store():
 
 # Build the full RAG pipeline
 def build_rag_pipeline():
-    # If FAISS index already exists, load it
     if os.path.exists(FAISS_INDEX_PATH):
         print("Loading existing FAISS index...")
         vector_store = load_vector_store()
@@ -74,10 +73,10 @@ def build_rag_pipeline():
         model_name="llama-3.1-8b-instant"
     )
 
-    # Retriever - gets top 3 relevant chunks from FAISS
+    # Retriever
     retriever = vector_store.as_retriever(search_kwargs={"k": 3})
 
-    # Prompt template with chat history support
+    # Prompt with chat history support
     prompt = ChatPromptTemplate.from_messages([
         ("system", """You are ClearPath AI, a helpful immigration assistant for 
         international students in the US. Use the context from official USCIS 
@@ -88,19 +87,8 @@ def build_rag_pipeline():
         ("human", "{question}")
     ])
 
-    # Build RAG chain
-    rag_chain = (
-        {
-            "context": retriever,
-            "question": RunnablePassthrough(),
-            "chat_history": lambda x: []
-        }
-        | prompt
-        | llm
-        | StrOutputParser()
-    )
+    return {"retriever": retriever, "llm": llm, "prompt": prompt}
 
-    return rag_chain
 
 # Convert DB conversation history to LangChain message format
 def format_chat_history(history):
@@ -112,8 +100,26 @@ def format_chat_history(history):
             messages.append(AIMessage(content=msg.message))
     return messages
 
+
 # Ask a question using the RAG pipeline with chat history
-def ask_question(rag_chain, question: str, chat_history: list = []):
+def ask_question(pipeline: dict, question: str, chat_history: list = []):
+    retriever = pipeline["retriever"]
+    llm = pipeline["llm"]
+    prompt = pipeline["prompt"]
+
+    # Get relevant docs from FAISS
+    docs = retriever.invoke(question)
+    context = "\n\n".join([doc.page_content for doc in docs])
+
+    # Format chat history
     formatted_history = format_chat_history(chat_history)
-    answer = rag_chain.invoke(question)
+
+    # Build and invoke chain
+    chain = prompt | llm | StrOutputParser()
+    answer = chain.invoke({
+        "context": context,
+        "question": question,
+        "chat_history": formatted_history
+    })
+
     return {"answer": answer}
