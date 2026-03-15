@@ -82,7 +82,7 @@ const Chat = () => {
       {/* Navbar */}
       <nav className="bg-blue-500 px-6 py-4 flex justify-between items-center shadow-md">
         {/* Logo + Name */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate("/")}>
           <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center">
             <span className="text-blue-500 font-bold text-sm">CP</span>
           </div>
