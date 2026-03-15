@@ -4,7 +4,8 @@ from pydantic import BaseModel, EmailStr
 
 from models.database import get_db
 from models.user import User
-from services.auth import hash_password, verify_password, create_access_token
+from services.auth import hash_password, verify_password, create_access_token, verify_token
+from dependencies import get_current_user_email
 
 # Create router
 router = APIRouter(prefix="/auth", tags=["Authentication"])
@@ -21,12 +22,9 @@ class LoginRequest(BaseModel):
     password: str
 
 
-# --- Routes ---
-
 # Register a new user
 @router.post("/register")
 def register(request: RegisterRequest, db: Session = Depends(get_db)):
-    # Check if user already exists
     existing_user = db.query(User).filter(User.email == request.email).first()
     if existing_user:
         raise HTTPException(
@@ -34,7 +32,6 @@ def register(request: RegisterRequest, db: Session = Depends(get_db)):
             detail="Email already registered"
         )
 
-    # Hash the password and save the new user
     new_user = User(
         email=request.email,
         hashed_password=hash_password(request.password)
@@ -49,7 +46,6 @@ def register(request: RegisterRequest, db: Session = Depends(get_db)):
 # Login and get JWT token
 @router.post("/login")
 def login(request: LoginRequest, db: Session = Depends(get_db)):
-    # Check if user exists
     user = db.query(User).filter(User.email == request.email).first()
     if not user:
         raise HTTPException(
@@ -57,13 +53,23 @@ def login(request: LoginRequest, db: Session = Depends(get_db)):
             detail="Invalid email or password"
         )
 
-    # Verify password
     if not verify_password(request.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password"
         )
 
-    # Create and return JWT token
     token = create_access_token(data={"sub": user.email})
     return {"access_token": token, "token_type": "bearer"}
+
+
+# Get current logged in user info
+@router.get("/me")
+def get_me(email: str = Depends(get_current_user_email), db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.email == email).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+    return {"id": user.id, "email": user.email}

@@ -15,13 +15,27 @@ const Chat = () => {
   const navigate = useNavigate();
 
   const email = localStorage.getItem("email");
+  const token = localStorage.getItem("token");
   const sessionId = localStorage.getItem("session_id") || `session_${Date.now()}`;
+  const [userId, setUserId] = useState(null);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // Get real user_id from backend using JWT token
   useEffect(() => {
-    if (!localStorage.getItem("session_id")) {
-      localStorage.setItem("session_id", sessionId);
-    }
+    const fetchUser = async () => {
+      try {
+        const response = await axios.get("http://localhost:8000/auth/me", {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        setUserId(response.data.id);
+        if (!localStorage.getItem("session_id")) {
+          localStorage.setItem("session_id", sessionId);
+        }
+      } catch (err) {
+        navigate("/");
+      }
+    };
+    fetchUser();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -40,7 +54,7 @@ const Chat = () => {
       const response = await axios.post("http://localhost:8000/chat/ask", {
         question: input,
         session_id: sessionId,
-        user_id: 1,
+        user_id: userId,
       });
       setMessages((prev) => [...prev, { role: "assistant", content: response.data.answer }]);
     } catch (err) {
