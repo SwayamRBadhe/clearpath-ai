@@ -1,0 +1,54 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual Environment
+venv/
+env/
+.venv/
+
+# Environment Variables - NEVER upload this
+.env
+*.env
+
+# ML Models & Large Files
+backend/trained_models/
+*.pkl
+*.joblib
+*.h5
+*.pt
+*.pth
+
+# FAISS Index
+*.faiss
+*.index
+
+# USCIS Docs (large PDFs)
+backend/data/uscis_docs/
+
+# MLflow
+mlruns/
+mlflow.db
+
+# Logs
+*.log
+logs/
+
+# VS Code
+.vscode/
+
+# Node / React
+frontend/node_modules/
+frontend/build/
+frontend/.env
+
+# OS
+.DS_Store
+Thumbs.db
