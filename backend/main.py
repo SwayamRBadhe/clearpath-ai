@@ -3,11 +3,18 @@ from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 import os
 
+from models.database import engine, Base
+from models import user  # noqa: F401 - needed to register the User model
+from routers import auth as auth_router
+
 # Load environment variables from backend/.env
 load_dotenv()
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+
+# Create all tables in the database
+Base.metadata.create_all(bind=engine)
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -24,6 +31,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Register routers
+app.include_router(auth_router.router)
 
 # Health check route
 @app.get("/")
