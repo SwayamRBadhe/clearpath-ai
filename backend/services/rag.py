@@ -5,9 +5,10 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
 from langchain_groq import ChatGroq
-from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.runnables import RunnablePassthrough
 from langchain_core.output_parsers import StrOutputParser
+from langchain_core.messages import HumanMessage, AIMessage
 
 load_dotenv()
 
@@ -73,25 +74,27 @@ def build_rag_pipeline():
         model_name="llama-3.1-8b-instant"
     )
 
-    # Retriever
+    # Retriever - gets top 3 relevant chunks from FAISS
     retriever = vector_store.as_retriever(search_kwargs={"k": 3})
 
-    # Prompt template
-    prompt = ChatPromptTemplate.from_template("""
-    You are ClearPath AI, an immigration assistant for international students in the US.
-    Use the following context from official USCIS documents to answer the question.
-    If you don't know the answer, say you don't know. Do not make up information.
+    # Prompt template with chat history support
+    prompt = ChatPromptTemplate.from_messages([
+        ("system", """You are ClearPath AI, a helpful immigration assistant for 
+        international students in the US. Use the context from official USCIS 
+        documents to answer questions. If you don't know, say so honestly.
+        
+        Context: {context}"""),
+        MessagesPlaceholder(variable_name="chat_history"),
+        ("human", "{question}")
+    ])
 
-    Context: {context}
-
-    Question: {question}
-
-    Answer:
-    """)
-
-    # Build RAG chain using LCEL (LangChain Expression Language)
+    # Build RAG chain
     rag_chain = (
-        {"context": retriever, "question": RunnablePassthrough()}
+        {
+            "context": retriever,
+            "question": RunnablePassthrough(),
+            "chat_history": lambda x: []
+        }
         | prompt
         | llm
         | StrOutputParser()
@@ -99,7 +102,18 @@ def build_rag_pipeline():
 
     return rag_chain
 
-# Ask a question using the RAG pipeline
-def ask_question(rag_chain, question: str):
+# Convert DB conversation history to LangChain message format
+def format_chat_history(history):
+    messages = []
+    for msg in history:
+        if msg.role == "user":
+            messages.append(HumanMessage(content=msg.message))
+        else:
+            messages.append(AIMessage(content=msg.message))
+    return messages
+
+# Ask a question using the RAG pipeline with chat history
+def ask_question(rag_chain, question: str, chat_history: list = []):
+    formatted_history = format_chat_history(chat_history)
     answer = rag_chain.invoke(question)
     return {"answer": answer}

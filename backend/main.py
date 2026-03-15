@@ -5,6 +5,7 @@ import os
 
 from models.database import engine, Base
 from models import user  # noqa: F401 - needed to register the User model
+from models import conversation  # noqa: F401 - needed to register Conversation model
 from routers import auth as auth_router
 from routers import chat as chat_router
 from services.rag import build_rag_pipeline
