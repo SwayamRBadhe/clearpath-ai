@@ -8,8 +8,8 @@ from models import user  # noqa: F401
 from models import conversation  # noqa: F401
 from routers import auth as auth_router
 from routers import chat as chat_router
-from routers import predictor as predictor_router
-# from services.rag import build_rag_pipeline  # temporarily disabled for deployment
+# from routers import predictor as predictor_router  # temporarily disabled
+# from services.rag import build_rag_pipeline  # temporarily disabled
 
 # Load environment variables
 load_dotenv()
@@ -39,18 +39,7 @@ app.add_middleware(
 # Register routers
 app.include_router(auth_router.router)
 app.include_router(chat_router.router)
-app.include_router(predictor_router.router)
-
-# RAG startup temporarily disabled for deployment diagnosis
-# @app.on_event("startup")
-# async def startup_event():
-#     try:
-#         print("Initializing RAG pipeline...")
-#         app.state.qa_chain = build_rag_pipeline()
-#         print("RAG pipeline ready.")
-#     except Exception as e:
-#         print(f"RAG pipeline not initialized: {e}")
-#         app.state.qa_chain = None
+# app.include_router(predictor_router.router)  # temporarily disabled
 
 app.state.qa_chain = None
 
