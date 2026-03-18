@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 
 from models.database import get_db
 from models.conversation import Conversation
+from services.rag import ask_question
 
 # Create router
 router = APIRouter(prefix="/chat", tags=["Chat"])
@@ -12,15 +13,13 @@ router = APIRouter(prefix="/chat", tags=["Chat"])
 # Request body schema
 class ChatRequest(BaseModel):
     question: str
-    session_id: str
-    user_id: int
+    session_id: str  # groups messages into one conversation
+    user_id: int     # which user is asking
 
 
 # Chat route - takes a question and returns an answer from RAG pipeline
 @router.post("/ask")
 async def ask(request: Request, chat_request: ChatRequest, db: Session = Depends(get_db)):
-    from services.rag import ask_question  # lazy import to avoid startup crash
-
     # Make sure RAG pipeline is ready
     qa_chain = getattr(request.app.state, "qa_chain", None)
     if qa_chain is None:
