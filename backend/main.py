@@ -7,7 +7,7 @@ from models.database import engine, Base
 from models import user  # noqa: F401
 from models import conversation  # noqa: F401
 from routers import auth as auth_router
-from routers import chat as chat_router
+#from routers import chat as chat_router
 # from routers import predictor as predictor_router  # temporarily disabled
 # from services.rag import build_rag_pipeline  # temporarily disabled
 
@@ -38,7 +38,7 @@ app.add_middleware(
 
 # Register routers
 app.include_router(auth_router.router)
-app.include_router(chat_router.router)
+#app.include_router(chat_router.router)
 # app.include_router(predictor_router.router)  # temporarily disabled
 
 app.state.qa_chain = None
